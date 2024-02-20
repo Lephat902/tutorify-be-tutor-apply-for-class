@@ -27,7 +27,7 @@ export class ApproveApplicationSagaHandler {
     .step('Set others which are PENDING to FILLED')
     .invoke(this.step3)
 
-    .return(Boolean)
+    .return(this.buildResult)
 
     .build();
 
@@ -54,7 +54,7 @@ export class ApproveApplicationSagaHandler {
     await this.tutorApplyForClassService.updateTutorOfClass(classId, null);
   }
 
-  buildResult(cmd: ApproveApplicationSagaCommand): boolean | Promise<boolean> {
+  buildResult(cmd: ApproveApplicationSagaCommand): boolean {
     return true;
   }
 }

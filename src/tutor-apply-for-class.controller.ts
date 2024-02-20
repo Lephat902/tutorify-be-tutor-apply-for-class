@@ -3,6 +3,7 @@ import { TutorApplyForClass } from './tutor-apply-for-class.entity';
 import { TutorApplyForClassService } from './tutor-apply-for-class.service';
 import { TutorApplyForClassCreateDto, TutorApplyForClassQueryDto } from './dtos';
 import { MessagePattern } from '@nestjs/microservices';
+import { DesignateTutorsToClassDto } from '@tutorify/shared';
 
 @Controller()
 export class TutorApplyForClassController {
@@ -11,6 +12,11 @@ export class TutorApplyForClassController {
   @MessagePattern({ cmd: 'addNewApplication' })
   async addNewApplication(tutorApplyForClassCreateDto: TutorApplyForClassCreateDto): Promise<TutorApplyForClass> {
     return this.tutorApplyForClassService.addNewApplication(tutorApplyForClassCreateDto);
+  }
+
+  @MessagePattern({ cmd: 'designateTutors' })
+  async designateTutors(data: DesignateTutorsToClassDto): Promise<TutorApplyForClass[]> {
+    return this.tutorApplyForClassService.designateTutors(data.classId, data.tutorIds);
   }
 
   @MessagePattern({ cmd: 'getApplicationById' })

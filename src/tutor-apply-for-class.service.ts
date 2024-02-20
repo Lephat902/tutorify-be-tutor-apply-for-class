@@ -21,6 +21,19 @@ export class TutorApplyForClassService {
     return this.tutorApplyForClassRepository.save(tutorApplyForClassCreateDto);
   }
 
+  async designateTutors(classId: string, tutorIds: string[]) {
+    const tutorApplications = tutorIds.map(tutorId => {
+      return this.tutorApplyForClassRepository.create({
+        classId: classId,
+        tutorId: tutorId,
+        isDesignated: true,
+        appliedAt: new Date(),
+      });
+    });
+  
+    return await this.tutorApplyForClassRepository.save(tutorApplications);
+  }  
+
   async getApplicationById(id: string): Promise<TutorApplyForClass> {
     const application = await this.tutorApplyForClassRepository.findOneBy({ id });
     if (!application) {
