@@ -3,13 +3,14 @@ import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { AppModule } from './app.module';
 import { GlobalExceptionsFilter } from './global-exception-filter';
 import { ClassSerializerInterceptor } from '@nestjs/common';
+import { QueueNames } from '@tutorify/shared';
 
 async function bootstrap() {
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
     transport: Transport.RMQ,
     options: {
       urls: [process.env.RABBITMQ_URI],
-      queue: 'tutor-apply-for-class',
+      queue: QueueNames.TUTOR_APPLY_FOR_CLASS,
       queueOptions: {
         durable: false
       }

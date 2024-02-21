@@ -9,6 +9,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
 import { CqrsModule } from '@nestjs/cqrs';
 import { SagaModule } from 'nestjs-saga';
 import { ApproveApplicationSagaHandler } from './sagas/handlers';
+import { BroadcastModule } from '@tutorify/shared';
 
 @Global()
 @Module({
@@ -47,6 +48,7 @@ import { ApproveApplicationSagaHandler } from './sagas/handlers';
     SagaModule.register({
       sagas: [ApproveApplicationSagaHandler],
     }),
+    BroadcastModule,
   ],
   providers: [
     TutorApplyForClassService,

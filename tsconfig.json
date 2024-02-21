@@ -17,13 +17,19 @@
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
+    "resolveJsonModule": true, // help VSCode to autocomplete and suggest quick-fixes
     "paths": {
       "@tutorify/shared": [
-        "../shared/"
+        "../shared/src"
       ],
       "@tutorify/shared/*": [
-        "../shared/*"
+        "../shared/src/*"
       ]
-    }  
-  }
+    }
+  },
+  "exclude": [
+    "test-fixtures",
+    "node_modules",
+    "source/test.ts"
+  ]
 }
