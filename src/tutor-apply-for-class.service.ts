@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException, Inject } from '@nestjs/common';
 import { TutorApplyForClass } from './tutor-apply-for-class.entity';
-import { ApplicationStatus } from '@tutorify/shared';
+import { ApplicationStatus, QueueNames } from '@tutorify/shared';
 import { TutorApplyForClassRepository } from './tutor-apply-for-class.repository';
 import { TutorApplyForClassCreateDto, TutorApplyForClassQueryDto } from './dtos';
 import { ClientProxy } from '@nestjs/microservices';
@@ -12,7 +12,7 @@ import { ApproveApplicationSagaCommand } from './sagas/impl';
 export class TutorApplyForClassService {
   constructor(
     private readonly tutorApplyForClassRepository: TutorApplyForClassRepository,
-    @Inject('CLASS_SERVICE') private readonly client: ClientProxy,
+    @Inject(QueueNames.CLASS_AND_CATEGORY) private readonly client: ClientProxy,
     private readonly commandBus: CommandBus,
   ) { }
 

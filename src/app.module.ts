@@ -9,7 +9,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
 import { CqrsModule } from '@nestjs/cqrs';
 import { SagaModule } from 'nestjs-saga';
 import { ApproveApplicationSagaHandler } from './sagas/handlers';
-import { BroadcastModule } from '@tutorify/shared';
+import { BroadcastModule, QueueNames } from '@tutorify/shared';
 
 @Global()
 @Module({
@@ -30,13 +30,13 @@ import { BroadcastModule } from '@tutorify/shared';
     }),
     ClientsModule.registerAsync([
       {
-        name: 'CLASS_SERVICE',
+        name: QueueNames.CLASS_AND_CATEGORY,
         inject: [ConfigService],
         useFactory: async (configService: ConfigService) => ({
           transport: Transport.RMQ,
           options: {
             urls: [configService.get<string>('RABBITMQ_URI')],
-            queue: 'class',
+            queue: QueueNames.CLASS_AND_CATEGORY,
             queueOptions: {
               durable: false,
             },
