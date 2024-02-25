@@ -2,7 +2,7 @@ import { ApplicationStatus, PaginationDto, SortingDirectionDto, applyMixins, Tut
 
 class TutorApplyForClassQueryDto {
     readonly tutorId?: string;
-    readonly studentId?: string;
+    readonly classId?: string;
     readonly isDesignated?: boolean;
     readonly applicationStatuses?: ApplicationStatus[];
     readonly order?: TutorApplyForClassOrderBy;

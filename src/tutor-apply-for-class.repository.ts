@@ -16,8 +16,8 @@ export class TutorApplyForClassRepository extends Repository<TutorApplyForClass>
       queryBuilder.andWhere('tutorApplyForClass.tutorId = :tutorId', { tutorId: filters.tutorId });
     }
 
-    if (filters.studentId) {
-      queryBuilder.andWhere('tutorApplyForClass.studentId = :studentId', { studentId: filters.studentId });
+    if (filters.classId) {
+      queryBuilder.andWhere('tutorApplyForClass.classId = :classId', { classId: filters.classId });
     }
 
     if (filters.isDesignated !== undefined) {
