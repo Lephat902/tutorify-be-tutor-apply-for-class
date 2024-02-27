@@ -47,6 +47,7 @@ import { BroadcastModule, QueueNames } from '@tutorify/shared';
     CqrsModule,
     SagaModule.register({
       sagas: [ApproveApplicationSagaHandler],
+      imports: [AppModule],
     }),
     BroadcastModule,
   ],
@@ -55,6 +56,10 @@ import { BroadcastModule, QueueNames } from '@tutorify/shared';
     TutorApplyForClassRepository,
   ],
   controllers: [TutorApplyForClassController],
-  exports: [TutorApplyForClassService]
+  exports: [
+    TutorApplyForClassService,
+    TutorApplyForClassRepository,
+    ClientsModule,
+  ]
 })
 export class AppModule { }

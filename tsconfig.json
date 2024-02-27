@@ -30,6 +30,7 @@
   "exclude": [
     "test-fixtures",
     "node_modules",
-    "source/test.ts"
+    "test",
+    "dist",
   ]
 }

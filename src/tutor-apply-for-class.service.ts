@@ -1,39 +1,45 @@
-import { Injectable, BadRequestException, NotFoundException, Inject } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { TutorApplyForClass } from './tutor-apply-for-class.entity';
-import { ApplicationStatus, QueueNames } from '@tutorify/shared';
+import { ApplicationStatus, BroadcastService } from '@tutorify/shared';
 import { TutorApplyForClassRepository } from './tutor-apply-for-class.repository';
 import { TutorApplyForClassCreateDto, TutorApplyForClassQueryDto } from './dtos';
-import { ClientProxy } from '@nestjs/microservices';
-import { firstValueFrom } from 'rxjs';
 import { CommandBus } from '@nestjs/cqrs';
 import { ApproveApplicationSagaCommand } from './sagas/impl';
+import { dispatchClassApplicationCreatedEvent, dispatchClassApplicationUpdatedEvent } from './dispatchers';
 
 @Injectable()
 export class TutorApplyForClassService {
   constructor(
     private readonly tutorApplyForClassRepository: TutorApplyForClassRepository,
-    @Inject(QueueNames.CLASS_AND_CATEGORY) private readonly client: ClientProxy,
     private readonly commandBus: CommandBus,
+    private readonly broadcastService: BroadcastService,
   ) { }
 
   async addNewApplication(tutorApplyForClassCreateDto: TutorApplyForClassCreateDto): Promise<TutorApplyForClass> {
     const { tutorId, classId } = tutorApplyForClassCreateDto;
     await this.checkExistingApprovedApplication(classId);
     await this.checkReApplyWhilePending(tutorId, classId);
-    return this.tutorApplyForClassRepository.save(tutorApplyForClassCreateDto);
+    const newClassApplication = await this.tutorApplyForClassRepository.save(tutorApplyForClassCreateDto);
+    dispatchClassApplicationCreatedEvent(this.broadcastService, newClassApplication);
+    return newClassApplication;
   }
 
-  async designateTutors(classId: string, tutorIds: string[]) {
+  async designateTutors(classId: string, tutorIds: string[]): Promise<TutorApplyForClass[]> {
     const tutorApplications = tutorIds.map(tutorId => {
       return this.tutorApplyForClassRepository.create({
-        classId: classId,
-        tutorId: tutorId,
+        classId,
+        tutorId,
         isDesignated: true,
         appliedAt: new Date(),
       });
     });
 
-    return await this.tutorApplyForClassRepository.save(tutorApplications);
+    const newClassApplications = await this.tutorApplyForClassRepository.save(tutorApplications);
+    newClassApplications.map(newClassApplication => {
+      dispatchClassApplicationCreatedEvent(this.broadcastService, newClassApplication);
+    });
+
+    return newClassApplications;
   }
 
   async getApplicationById(id: string): Promise<TutorApplyForClass> {
@@ -50,17 +56,21 @@ export class TutorApplyForClassService {
   }
 
   async cancelTutorApplyForClass(id: string) {
-    await this.updateStatus(id, ApplicationStatus.CANCELLED);
+    const updatedApplication = await this.updateStatus(id, ApplicationStatus.CANCELLED);
+    dispatchClassApplicationUpdatedEvent(this.broadcastService, updatedApplication);
     return true;
   }
 
   async rejectTutorApplyForClass(id: string) {
-    await this.updateStatus(id, ApplicationStatus.REJECTED);
+    const updatedApplication = await this.updateStatus(id, ApplicationStatus.REJECTED);
+    dispatchClassApplicationUpdatedEvent(this.broadcastService, updatedApplication);
     return true;
   }
 
   async approveTutorApplyForClass(id: string) {
-    return this.commandBus.execute(new ApproveApplicationSagaCommand(id));
+    const updatedApplication = await this.commandBus.execute(new ApproveApplicationSagaCommand(id));
+    dispatchClassApplicationUpdatedEvent(this.broadcastService, updatedApplication);
+    return true;
   }
 
   // newStatus is PENDING just in case of compensation
@@ -68,28 +78,7 @@ export class TutorApplyForClassService {
     const application = await this.getApplicationById(id);
     this.validateStatusTransition(application.status, newStatus);
     application.status = newStatus;
-    if (newStatus === ApplicationStatus.APPROVED) {
-      application.approvedAt = new Date();
-    } else if (newStatus === ApplicationStatus.PENDING) {
-      application.approvedAt = null;
-    }
     return this.tutorApplyForClassRepository.save(application);
-  }
-
-  async updateTutorOfClass(classId: string, tutorId: string) {
-    const updateDto = { tutorId };
-    await firstValueFrom(this.client.send({ cmd: 'updateClass' }, {
-      id: classId,
-      classData: updateDto,
-    }));
-  }
-
-  async setPendingStatusToFilled(classId: string) {
-    await this.tutorApplyForClassRepository.createQueryBuilder()
-      .update()
-      .set({ status: ApplicationStatus.FILLED })
-      .where('classId = :classId AND status = :status', { classId, status: ApplicationStatus.PENDING })
-      .execute();
   }
 
   private async checkExistingApprovedApplication(classId: string): Promise<void> {
