@@ -17,7 +17,9 @@ export class TutorApplyForClassService {
   ) { }
 
   async addNewApplication(tutorApplyForClassCreateDto: TutorApplyForClassCreateDto): Promise<TutorApplyForClass> {
-    await this.checkExistingApprovedApplication(tutorApplyForClassCreateDto.classId);
+    const { tutorId, classId } = tutorApplyForClassCreateDto;
+    await this.checkExistingApprovedApplication(classId);
+    await this.checkReApplyWhilePending(tutorId, classId);
     return this.tutorApplyForClassRepository.save(tutorApplyForClassCreateDto);
   }
 
@@ -30,9 +32,9 @@ export class TutorApplyForClassService {
         appliedAt: new Date(),
       });
     });
-  
+
     return await this.tutorApplyForClassRepository.save(tutorApplications);
-  }  
+  }
 
   async getApplicationById(id: string): Promise<TutorApplyForClass> {
     const application = await this.tutorApplyForClassRepository.findOneBy({ id });
@@ -97,6 +99,16 @@ export class TutorApplyForClassService {
 
     if (existingApprovedApplication) {
       throw new BadRequestException('There is already an approved application for this class');
+    }
+  }
+
+  private async checkReApplyWhilePending(tutorId: string, classId: string): Promise<void> {
+    const existingPendingApplication = await this.tutorApplyForClassRepository.findOne({
+      where: { tutorId, classId, status: ApplicationStatus.PENDING },
+    });
+
+    if (existingPendingApplication) {
+      throw new BadRequestException("You've already had an pending application to this class");
     }
   }
 
