@@ -1,11 +1,11 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { TutorApplyForClass } from './tutor-apply-for-class.entity';
-import { ApplicationStatus, BroadcastService } from '@tutorify/shared';
+import { ApplicationStatus, BroadcastService, ClassApplicationCreatedEvent, ClassApplicationCreatedEventPayload, ClassApplicationUpdatedEvent, ClassApplicationUpdatedEventPayload } from '@tutorify/shared';
 import { TutorApplyForClassRepository } from './tutor-apply-for-class.repository';
 import { TutorApplyForClassCreateDto, TutorApplyForClassQueryDto } from './dtos';
 import { CommandBus } from '@nestjs/cqrs';
 import { ApproveApplicationSagaCommand } from './sagas/impl';
-import { dispatchClassApplicationCreatedEvent, dispatchClassApplicationUpdatedEvent } from './dispatchers';
+import { Builder } from 'builder-pattern';
 
 @Injectable()
 export class TutorApplyForClassService {
@@ -20,7 +20,7 @@ export class TutorApplyForClassService {
     await this.checkExistingApprovedApplication(classId);
     await this.checkReApplyWhilePending(tutorId, classId);
     const newClassApplication = await this.tutorApplyForClassRepository.save(tutorApplyForClassCreateDto);
-    dispatchClassApplicationCreatedEvent(this.broadcastService, newClassApplication);
+    this.dispatchClassApplicationCreatedEvent(newClassApplication);
     return newClassApplication;
   }
 
@@ -36,7 +36,7 @@ export class TutorApplyForClassService {
 
     const newClassApplications = await this.tutorApplyForClassRepository.save(tutorApplications);
     newClassApplications.map(newClassApplication => {
-      dispatchClassApplicationCreatedEvent(this.broadcastService, newClassApplication);
+      this.dispatchClassApplicationCreatedEvent(newClassApplication);
     });
 
     return newClassApplications;
@@ -57,19 +57,19 @@ export class TutorApplyForClassService {
 
   async cancelTutorApplyForClass(id: string) {
     const updatedApplication = await this.updateStatus(id, ApplicationStatus.CANCELLED);
-    dispatchClassApplicationUpdatedEvent(this.broadcastService, updatedApplication);
+    this.dispatchClassApplicationUpdatedEvent(updatedApplication);
     return true;
   }
 
   async rejectTutorApplyForClass(id: string) {
     const updatedApplication = await this.updateStatus(id, ApplicationStatus.REJECTED);
-    dispatchClassApplicationUpdatedEvent(this.broadcastService, updatedApplication);
+    this.dispatchClassApplicationUpdatedEvent(updatedApplication);
     return true;
   }
 
   async approveTutorApplyForClass(id: string) {
     const updatedApplication = await this.commandBus.execute(new ApproveApplicationSagaCommand(id));
-    dispatchClassApplicationUpdatedEvent(this.broadcastService, updatedApplication);
+    this.dispatchClassApplicationUpdatedEvent(updatedApplication);
     return true;
   }
 
@@ -105,5 +105,30 @@ export class TutorApplyForClassService {
     if (currentStatus !== ApplicationStatus.PENDING && newStatus !== ApplicationStatus.PENDING) {
       throw new BadRequestException(`Cannot ${newStatus.toLowerCase()} application with status other than PENDING`);
     }
+  }
+
+  private dispatchClassApplicationCreatedEvent(newClassApplication: TutorApplyForClass) {
+    const { id, tutorId, classId, isDesignated, appliedAt } = newClassApplication
+    const eventPayload = Builder<ClassApplicationCreatedEventPayload>()
+      .classApplicationId(id)
+      .tutorId(tutorId)
+      .classId(classId)
+      .isDesignated(isDesignated)
+      .appliedAt(appliedAt)
+      .build();
+    const event = new ClassApplicationCreatedEvent(eventPayload);
+    this.broadcastService.broadcastEventToAllMicroservices(event.pattern, event.payload);
+  }
+
+  private dispatchClassApplicationUpdatedEvent(updatedApplication: TutorApplyForClass) {
+    const { id, tutorId, classId, status } = updatedApplication
+    const eventPayload = Builder<ClassApplicationUpdatedEventPayload>()
+      .classApplicationId(id)
+      .tutorId(tutorId)
+      .classId(classId)
+      .newStatus(status)
+      .build();
+    const event = new ClassApplicationUpdatedEvent(eventPayload);
+    this.broadcastService.broadcastEventToAllMicroservices(event.pattern, event.payload);
   }
 }
