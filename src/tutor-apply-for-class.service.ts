@@ -73,6 +73,14 @@ export class TutorApplyForClassService {
     return true;
   }
 
+  async setAllApplicationToClassDeletedByClassId(classId: string): Promise<void> {
+    await this.tutorApplyForClassRepository.createQueryBuilder()
+      .update()
+      .set({ status: ApplicationStatus.CLASS_DELETED })
+      .where('classId = :classId', { classId })
+      .execute();
+  }
+
   // newStatus is PENDING just in case of compensation
   async updateStatus(id: string, newStatus: ApplicationStatus): Promise<TutorApplyForClass> {
     const application = await this.getApplicationById(id);

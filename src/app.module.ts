@@ -3,7 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TutorApplyForClass } from './tutor-apply-for-class.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TutorApplyForClassService } from './tutor-apply-for-class.service';
-import { TutorApplyForClassController } from './tutor-apply-for-class.controller';
+import { TutorApplyForClassController, TutorApplyForClassControllerEventHandler } from './controllers';
 import { TutorApplyForClassRepository } from './tutor-apply-for-class.repository';
 import { CqrsModule } from '@nestjs/cqrs';
 import { SagaModule } from 'nestjs-saga';
@@ -38,7 +38,10 @@ import { BroadcastModule } from '@tutorify/shared';
     TutorApplyForClassService,
     TutorApplyForClassRepository,
   ],
-  controllers: [TutorApplyForClassController],
+  controllers: [
+    TutorApplyForClassController,
+    TutorApplyForClassControllerEventHandler,
+  ],
   exports: [
     TutorApplyForClassService,
     TutorApplyForClassRepository,

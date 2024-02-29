@@ -1,7 +1,7 @@
 import { Controller } from '@nestjs/common';
-import { TutorApplyForClass } from './tutor-apply-for-class.entity';
-import { TutorApplyForClassService } from './tutor-apply-for-class.service';
-import { TutorApplyForClassCreateDto, TutorApplyForClassQueryDto } from './dtos';
+import { TutorApplyForClass } from '../tutor-apply-for-class.entity';
+import { TutorApplyForClassService } from '../tutor-apply-for-class.service';
+import { TutorApplyForClassCreateDto, TutorApplyForClassQueryDto } from '../dtos';
 import { MessagePattern } from '@nestjs/microservices';
 import { DesignateTutorsToClassDto } from '@tutorify/shared';
 
