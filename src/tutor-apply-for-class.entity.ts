@@ -1,5 +1,5 @@
 import { ApplicationStatus } from '@tutorify/shared';
-import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
 @Entity()
 export class TutorApplyForClass {
@@ -18,9 +18,9 @@ export class TutorApplyForClass {
   @Column({ default: false, nullable: false })
   isDesignated: boolean;
 
-  @Column({ nullable: false })
+  @CreateDateColumn()
   appliedAt: Date;
 
-  @Column({ nullable: true })
-  approvedAt: Date;
+  @UpdateDateColumn({ nullable: true })
+  statusChangedAt: Date;
 }

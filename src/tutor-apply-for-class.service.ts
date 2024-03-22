@@ -30,7 +30,6 @@ export class TutorApplyForClassService {
         classId,
         tutorId,
         isDesignated: true,
-        appliedAt: new Date(),
       });
     });
 

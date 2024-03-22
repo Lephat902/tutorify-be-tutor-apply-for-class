@@ -32,7 +32,6 @@ describe('TutorApplyForClassService', () => {
       classId: uuidv4(),
       tutorId: uuidv4(),
       isDesignated: false,
-      appliedAt: new Date(),
     };
 
     // Act
@@ -42,7 +41,7 @@ describe('TutorApplyForClassService', () => {
     expect(insertedClassApplication).toEqual(expect.objectContaining(classApplicationCreateDto));
     expect(insertedClassApplication.id).toBeDefined();
     expect(insertedClassApplication.status).toEqual(ApplicationStatus.PENDING);
-    expect(insertedClassApplication.approvedAt).toEqual(null);
+    expect(insertedClassApplication.statusChangedAt).toEqual(null);
 
     // Act
     const classApplications = await service.getAllApplications({});

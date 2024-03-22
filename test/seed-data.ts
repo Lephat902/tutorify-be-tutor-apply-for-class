@@ -15,7 +15,7 @@ export const seedData: TutorApplyForClass[] = [
         status: ApplicationStatus.PENDING,
         isDesignated: false,
         appliedAt: new Date(),
-        approvedAt: null,
+        statusChangedAt: null,
     },
     {
         id: uuidv4(),
@@ -24,7 +24,7 @@ export const seedData: TutorApplyForClass[] = [
         status: ApplicationStatus.PENDING,
         isDesignated: false,
         appliedAt: new Date(),
-        approvedAt: null,
+        statusChangedAt: null,
     },
     {
         id: uuidv4(),
@@ -33,6 +33,6 @@ export const seedData: TutorApplyForClass[] = [
         status: ApplicationStatus.PENDING,
         isDesignated: false,
         appliedAt: new Date(),
-        approvedAt: null,
+        statusChangedAt: null,
     },
 ];

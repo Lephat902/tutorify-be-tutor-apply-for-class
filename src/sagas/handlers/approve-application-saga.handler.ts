@@ -31,7 +31,6 @@ export class ApproveApplicationSagaHandler {
 
   async step1(cmd: ApproveApplicationSagaCommand) {
     this.updatedApplication = await this.tutorApplyForClassService.updateStatus(cmd.id, ApplicationStatus.APPROVED);
-    this.updatedApplication.approvedAt = new Date();
   }
 
   async step2(cmd: ApproveApplicationSagaCommand) {
@@ -41,7 +40,7 @@ export class ApproveApplicationSagaHandler {
 
   async step1Compensation(cmd: ApproveApplicationSagaCommand) {
     await this.tutorApplyForClassService.updateStatus(cmd.id, ApplicationStatus.PENDING);
-    this.updatedApplication.approvedAt = null;
+    this.updatedApplication.statusChangedAt = null;
   }
 
   buildResult(cmd: ApproveApplicationSagaCommand): TutorApplyForClass {
