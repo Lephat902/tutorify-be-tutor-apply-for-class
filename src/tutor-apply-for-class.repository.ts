@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { TutorApplyForClass } from './tutor-apply-for-class.entity';
 import { TutorApplyForClassQueryDto } from './dtos';
+import { ApplicationStatus } from '@tutorify/shared';
 
 @Injectable()
 export class TutorApplyForClassRepository extends Repository<TutorApplyForClass> {
@@ -36,6 +37,10 @@ export class TutorApplyForClassRepository extends Repository<TutorApplyForClass>
       queryBuilder.skip((filters.page - 1) * filters.limit).take(filters.limit);
     }
 
-    return await queryBuilder.getMany();
+    if (!filters.includeDeletedClass) {
+      queryBuilder.andWhere('tutorApplyForClass.status != :status', { status: ApplicationStatus.CLASS_DELETED });
+    }
+
+    return queryBuilder.getMany();
   }
 }
