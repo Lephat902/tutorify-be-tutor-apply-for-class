@@ -5,6 +5,8 @@ import { TutorApplyForClassRepository } from './tutor-apply-for-class.repository
 import { TutorApplyForClassCreateDto, TutorApplyForClassQueryDto } from './dtos';
 import { ClassApplicationEventDispatcher } from './class-application.event-dispatcher';
 
+const MAX_NUM_OF_TUTORS_TO_DESIGNATE_ALLOWED = 5;
+
 @Injectable()
 export class TutorApplyForClassService {
   constructor(
@@ -22,7 +24,8 @@ export class TutorApplyForClassService {
   }
 
   async designateTutors(classId: string, tutorIds: string[]): Promise<TutorApplyForClass[]> {
-    const tutorApplications = tutorIds.map(tutorId => {
+    const tutorIdsToDesignate = tutorIds.slice(0, MAX_NUM_OF_TUTORS_TO_DESIGNATE_ALLOWED);
+    const tutorApplications = tutorIdsToDesignate.map(tutorId => {
       return this.tutorApplyForClassRepository.create({
         classId,
         tutorId,
