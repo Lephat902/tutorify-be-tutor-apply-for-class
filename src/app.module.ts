@@ -1,16 +1,13 @@
-import { Global, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TutorApplyForClass } from './tutor-apply-for-class.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TutorApplyForClassService } from './tutor-apply-for-class.service';
-import { TutorApplyForClassController, TutorApplyForClassControllerEventHandler } from './controllers';
+import { Controllers } from './controllers';
 import { TutorApplyForClassRepository } from './tutor-apply-for-class.repository';
-import { CqrsModule } from '@nestjs/cqrs';
-import { SagaModule } from 'nestjs-saga';
-import { ApproveApplicationSagaHandler } from './sagas/handlers';
 import { BroadcastModule } from '@tutorify/shared';
+import { ClassApplicationEventDispatcher } from './class-application.event-dispatcher';
 
-@Global()
 @Module({
   imports: [
     TypeOrmModule.forFeature([TutorApplyForClass]),
@@ -27,24 +24,13 @@ import { BroadcastModule } from '@tutorify/shared';
       isGlobal: true,
       envFilePath: ['.env', '.env.example'],
     }),
-    CqrsModule,
-    SagaModule.register({
-      sagas: [ApproveApplicationSagaHandler],
-      imports: [AppModule],
-    }),
     BroadcastModule,
   ],
   providers: [
     TutorApplyForClassService,
     TutorApplyForClassRepository,
+    ClassApplicationEventDispatcher,
   ],
-  controllers: [
-    TutorApplyForClassController,
-    TutorApplyForClassControllerEventHandler,
-  ],
-  exports: [
-    TutorApplyForClassService,
-    TutorApplyForClassRepository,
-  ]
+  controllers: Controllers,
 })
 export class AppModule { }

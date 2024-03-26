@@ -1,18 +1,15 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { TutorApplyForClass } from './tutor-apply-for-class.entity';
-import { ApplicationStatus, BroadcastService, ClassApplicationCreatedEvent, ClassApplicationCreatedEventPayload, ClassApplicationUpdatedEvent, ClassApplicationUpdatedEventPayload } from '@tutorify/shared';
+import { ApplicationStatus } from '@tutorify/shared';
 import { TutorApplyForClassRepository } from './tutor-apply-for-class.repository';
 import { TutorApplyForClassCreateDto, TutorApplyForClassQueryDto } from './dtos';
-import { CommandBus } from '@nestjs/cqrs';
-import { ApproveApplicationSagaCommand } from './sagas/impl';
-import { Builder } from 'builder-pattern';
+import { ClassApplicationEventDispatcher } from './class-application.event-dispatcher';
 
 @Injectable()
 export class TutorApplyForClassService {
   constructor(
     private readonly tutorApplyForClassRepository: TutorApplyForClassRepository,
-    private readonly commandBus: CommandBus,
-    private readonly broadcastService: BroadcastService,
+    private readonly classApplicationEventDispatcher: ClassApplicationEventDispatcher,
   ) { }
 
   async addNewApplication(tutorApplyForClassCreateDto: TutorApplyForClassCreateDto): Promise<TutorApplyForClass> {
@@ -20,7 +17,7 @@ export class TutorApplyForClassService {
     await this.checkExistingApprovedApplication(classId);
     await this.checkReApplyWhilePending(tutorId, classId);
     const newClassApplication = await this.tutorApplyForClassRepository.save(tutorApplyForClassCreateDto);
-    this.dispatchClassApplicationCreatedEvent(newClassApplication);
+    this.classApplicationEventDispatcher.dispatchClassApplicationCreatedEvent(newClassApplication);
     return newClassApplication;
   }
 
@@ -35,7 +32,7 @@ export class TutorApplyForClassService {
 
     const newClassApplications = await this.tutorApplyForClassRepository.save(tutorApplications);
     newClassApplications.map(newClassApplication => {
-      this.dispatchClassApplicationCreatedEvent(newClassApplication);
+      this.classApplicationEventDispatcher.dispatchClassApplicationCreatedEvent(newClassApplication);
     });
 
     return newClassApplications;
@@ -55,37 +52,47 @@ export class TutorApplyForClassService {
   }
 
   async cancelTutorApplyForClass(id: string) {
-    const updatedApplication = await this.updateStatus(id, ApplicationStatus.CANCELLED);
-    this.dispatchClassApplicationUpdatedEvent(updatedApplication);
-    return true;
+    return this.updateStatus(id, ApplicationStatus.CANCELLED);
   }
 
   async rejectTutorApplyForClass(id: string) {
-    const updatedApplication = await this.updateStatus(id, ApplicationStatus.REJECTED);
-    this.dispatchClassApplicationUpdatedEvent(updatedApplication);
-    return true;
+    return this.updateStatus(id, ApplicationStatus.REJECTED);
   }
 
   async approveTutorApplyForClass(id: string) {
-    const updatedApplication = await this.commandBus.execute(new ApproveApplicationSagaCommand(id));
-    this.dispatchClassApplicationUpdatedEvent(updatedApplication);
-    return true;
+    return this.updateStatus(id, ApplicationStatus.APPROVED);
   }
 
   async setAllApplicationToClassDeletedByClassId(classId: string): Promise<void> {
-    await this.tutorApplyForClassRepository.createQueryBuilder()
-      .update()
-      .set({ status: ApplicationStatus.CLASS_DELETED })
-      .where('classId = :classId', { classId })
-      .execute();
+    const allApplications = await this.tutorApplyForClassRepository.find({
+      where: {
+        classId,
+      }
+    });
+    await Promise.allSettled(allApplications.map(application => 
+      this.updateStatus(application.id, ApplicationStatus.CLASS_DELETED)
+    ));
   }
 
-  // newStatus is PENDING just in case of compensation
+  async setPendingStatusToFilled(classId: string) {
+    const pendingApplications = await this.tutorApplyForClassRepository.find({
+      where: {
+        classId,
+        status: ApplicationStatus.PENDING
+      }
+    });
+    await Promise.allSettled(pendingApplications.map(application => 
+      this.updateStatus(application.id, ApplicationStatus.FILLED)
+    ));
+  }
+
   async updateStatus(id: string, newStatus: ApplicationStatus): Promise<TutorApplyForClass> {
     const application = await this.getApplicationById(id);
     this.validateStatusTransition(application.status, newStatus);
     application.status = newStatus;
-    return this.tutorApplyForClassRepository.save(application);
+    const updatedApplication = await this.tutorApplyForClassRepository.save(application);
+    this.classApplicationEventDispatcher.dispatchClassApplicationUpdatedEvent(updatedApplication);
+    return updatedApplication;
   }
 
   private async checkExistingApprovedApplication(classId: string): Promise<void> {
@@ -109,33 +116,16 @@ export class TutorApplyForClassService {
   }
 
   private validateStatusTransition(currentStatus: ApplicationStatus, newStatus: ApplicationStatus): void {
-    if (currentStatus !== ApplicationStatus.PENDING && newStatus !== ApplicationStatus.PENDING) {
+    // Always valid
+    if (newStatus === ApplicationStatus.CLASS_DELETED) {
+      return;
+    }
+    if (newStatus === ApplicationStatus.PENDING) {
+      throw new BadRequestException(`Cannot set an application status to PENDING`);
+    }
+    // Every other status changes requires current status to be PENDING
+    if (currentStatus !== ApplicationStatus.PENDING) {
       throw new BadRequestException(`Cannot ${newStatus.toLowerCase()} application with status other than PENDING`);
     }
-  }
-
-  private dispatchClassApplicationCreatedEvent(newClassApplication: TutorApplyForClass) {
-    const { id, tutorId, classId, isDesignated, appliedAt } = newClassApplication
-    const eventPayload = Builder<ClassApplicationCreatedEventPayload>()
-      .classApplicationId(id)
-      .tutorId(tutorId)
-      .classId(classId)
-      .isDesignated(isDesignated)
-      .appliedAt(appliedAt)
-      .build();
-    const event = new ClassApplicationCreatedEvent(eventPayload);
-    this.broadcastService.broadcastEventToAllMicroservices(event.pattern, event.payload);
-  }
-
-  private dispatchClassApplicationUpdatedEvent(updatedApplication: TutorApplyForClass) {
-    const { id, tutorId, classId, status } = updatedApplication
-    const eventPayload = Builder<ClassApplicationUpdatedEventPayload>()
-      .classApplicationId(id)
-      .tutorId(tutorId)
-      .classId(classId)
-      .newStatus(status)
-      .build();
-    const event = new ClassApplicationUpdatedEvent(eventPayload);
-    this.broadcastService.broadcastEventToAllMicroservices(event.pattern, event.payload);
   }
 }
