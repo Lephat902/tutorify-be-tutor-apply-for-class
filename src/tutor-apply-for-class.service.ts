@@ -81,18 +81,24 @@ export class TutorApplyForClassService {
     // 1. Approve/Reject an invite
     // 2. Cancel his own previous application
     // Last but not least, the application must be about him
-    const isApprovingOrRejectInvite = application.isDesignated === true
-      && (newStatus === ApplicationStatus.APPROVED || newStatus === ApplicationStatus.REJECTED);
-    const isCancellingOwnApplication = application.isDesignated === false
-      && newStatus === ApplicationStatus.CANCELLED;
-    if (!isApprovingOrRejectInvite || !isCancellingOwnApplication) {
-      throw new BadRequestException("There is something wrong with your request");
-    }
 
     const isApplicationAboutCurrentUser = application.tutorId === userId;
     if (!isApplicationAboutCurrentUser) {
       throw new ForbiddenException("This is not your application");
     }
+
+    const isApprovingOrRejectInvite = application.isDesignated === true &&
+      (newStatus === ApplicationStatus.APPROVED || newStatus === ApplicationStatus.REJECTED);
+    const isCancellingOwnApplication = application.isDesignated === false &&
+      newStatus === ApplicationStatus.CANCELLED;
+
+    // Allow if the tutor is either approving/rejecting an invite or cancelling their own application
+    if (isApprovingOrRejectInvite || isCancellingOwnApplication) {
+      return; // The operation is allowed, proceed
+    }
+
+    // If none of the allowed conditions are met, throw an error
+    throw new BadRequestException("There is something wrong with your request");
   }
 
   private async checkApplicationProcessPermissionForStudent(
@@ -100,19 +106,25 @@ export class TutorApplyForClassService {
     userId: string,
     newStatus: ApplicationStatus
   ) {
-    // A student can do the following
+    // A student can do the following:
     // Approve/Reject an application by tutor
     // Furthermore, the class of the application must be of him
-    const isApprovingOrRejectTutorApplication = application.isDesignated === false
-      && (newStatus === ApplicationStatus.APPROVED || newStatus === ApplicationStatus.REJECTED);
-    if (!isApprovingOrRejectTutorApplication) {
-      throw new BadRequestException("There is something wrong with your request");
-    }
 
     const classToProcessApplication = await this.getClassById(application.classId);
     if (classToProcessApplication.studentId !== userId) {
-      throw new ForbiddenException("This application doesn't belong to any of your class");
+      throw new ForbiddenException("This application doesn't belong to any of your classes");
     }
+
+    const isApprovingOrRejectTutorApplication = application.isDesignated === false &&
+      (newStatus === ApplicationStatus.APPROVED || newStatus === ApplicationStatus.REJECTED);
+
+    // Allow if the student is approving/rejecting a tutor application for their own class
+    if (isApprovingOrRejectTutorApplication) {
+      return; // The operation is allowed, proceed
+    }
+
+    // If the conditions are not met, throw an error
+    throw new BadRequestException("There is something wrong with your request");
   }
 
   async getClassById(id: string) {
