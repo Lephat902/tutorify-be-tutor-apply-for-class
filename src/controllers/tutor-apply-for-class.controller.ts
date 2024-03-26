@@ -1,7 +1,7 @@
 import { Controller } from '@nestjs/common';
 import { TutorApplyForClass } from '../tutor-apply-for-class.entity';
 import { TutorApplyForClassService } from '../tutor-apply-for-class.service';
-import { TutorApplyForClassCreateDto, TutorApplyForClassQueryDto } from '../dtos';
+import { ProcessApplicationDto, TutorApplyForClassCreateDto, TutorApplyForClassQueryDto } from '../dtos';
 import { MessagePattern } from '@nestjs/microservices';
 import { DesignateTutorsToClassDto } from '@tutorify/shared';
 
@@ -29,18 +29,8 @@ export class TutorApplyForClassController {
     return this.tutorApplyForClassService.getAllApplications(filters);
   }
 
-  @MessagePattern({ cmd: 'cancelTutorApplyForClass' })
-  async cancelTutorApplyForClass(id: string) {
-    return this.tutorApplyForClassService.cancelTutorApplyForClass(id);
-  }
-
-  @MessagePattern({ cmd: 'rejectTutorApplyForClass' })
-  async rejectTutorApplyForClass(id: string) {
-    return this.tutorApplyForClassService.rejectTutorApplyForClass(id);
-  }
-
-  @MessagePattern({ cmd: 'approveTutorApplyForClass' })
-  async approveTutorApplyForClass(id: string) {
-    return this.tutorApplyForClassService.approveTutorApplyForClass(id);
+  @MessagePattern({ cmd: 'processApplication' })
+  async processApplication(processApplicationDto: ProcessApplicationDto) {
+    return this.tutorApplyForClassService.processApplication(processApplicationDto);
   }
 }

@@ -1,9 +1,11 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException, Inject } from '@nestjs/common';
 import { TutorApplyForClass } from './tutor-apply-for-class.entity';
-import { ApplicationStatus } from '@tutorify/shared';
+import { ApplicationStatus, QueueNames } from '@tutorify/shared';
 import { TutorApplyForClassRepository } from './tutor-apply-for-class.repository';
-import { TutorApplyForClassCreateDto, TutorApplyForClassQueryDto } from './dtos';
+import { Class, ProcessApplicationDto, TutorApplyForClassCreateDto, TutorApplyForClassQueryDto } from './dtos';
 import { ClassApplicationEventDispatcher } from './class-application.event-dispatcher';
+import { ClientProxy } from '@nestjs/microservices';
+import { firstValueFrom } from 'rxjs';
 
 const MAX_NUM_OF_TUTORS_TO_DESIGNATE_ALLOWED = 5;
 
@@ -12,6 +14,7 @@ export class TutorApplyForClassService {
   constructor(
     private readonly tutorApplyForClassRepository: TutorApplyForClassRepository,
     private readonly classApplicationEventDispatcher: ClassApplicationEventDispatcher,
+    @Inject(QueueNames.CLASS_AND_CATEGORY) private readonly client: ClientProxy,
   ) { }
 
   async addNewApplication(tutorApplyForClassCreateDto: TutorApplyForClassCreateDto): Promise<TutorApplyForClass> {
@@ -54,6 +57,68 @@ export class TutorApplyForClassService {
     return this.tutorApplyForClassRepository.getAllApplications(filters);
   }
 
+  async processApplication(processApplicationDto: ProcessApplicationDto) {
+    const { userId, isStudent, isTutor, applicationId, newStatus } = processApplicationDto;
+    const application = await this.getApplicationById(applicationId);
+    // Authorization check
+    if (isTutor) {
+      this.checkApplicationProcessPermissionForTutor(application, userId, newStatus);
+    } else if (isStudent) {
+      await this.checkApplicationProcessPermissionForStudent(application, userId, newStatus);
+    } else {
+      throw new ForbiddenException("How the hell you get here?");
+    }
+
+    return this.updateStatus(applicationId, newStatus);
+  }
+
+  private checkApplicationProcessPermissionForTutor(
+    application: TutorApplyForClass,
+    userId: string,
+    newStatus: ApplicationStatus
+  ) {
+    // A tutor can do the following:
+    // 1. Approve/Reject an invite
+    // 2. Cancel his own previous application
+    // Last but not least, the application must be about him
+    const isApprovingOrRejectInvite = application.isDesignated === true
+      && (newStatus === ApplicationStatus.APPROVED || newStatus === ApplicationStatus.REJECTED);
+    const isCancellingOwnApplication = application.isDesignated === false
+      && newStatus === ApplicationStatus.CANCELLED;
+    if (!isApprovingOrRejectInvite || !isCancellingOwnApplication) {
+      throw new BadRequestException("There is something wrong with your request");
+    }
+
+    const isApplicationAboutCurrentUser = application.tutorId === userId;
+    if (!isApplicationAboutCurrentUser) {
+      throw new ForbiddenException("This is not your application");
+    }
+  }
+
+  private async checkApplicationProcessPermissionForStudent(
+    application: TutorApplyForClass,
+    userId: string,
+    newStatus: ApplicationStatus
+  ) {
+    // A student can do the following
+    // Approve/Reject an application by tutor
+    // Furthermore, the class of the application must be of him
+    const isApprovingOrRejectTutorApplication = application.isDesignated === false
+      && (newStatus === ApplicationStatus.APPROVED || newStatus === ApplicationStatus.REJECTED);
+    if (!isApprovingOrRejectTutorApplication) {
+      throw new BadRequestException("There is something wrong with your request");
+    }
+
+    const classToProcessApplication = await this.getClassById(application.classId);
+    if (classToProcessApplication.studentId !== userId) {
+      throw new ForbiddenException("This application doesn't belong to any of your class");
+    }
+  }
+
+  async getClassById(id: string) {
+    return firstValueFrom(this.client.send<Class>({ cmd: 'getClassById' }, id));
+  }
+
   async cancelTutorApplyForClass(id: string) {
     return this.updateStatus(id, ApplicationStatus.CANCELLED);
   }
@@ -72,7 +137,7 @@ export class TutorApplyForClassService {
         classId,
       }
     });
-    await Promise.allSettled(allApplications.map(application => 
+    await Promise.allSettled(allApplications.map(application =>
       this.updateStatus(application.id, ApplicationStatus.CLASS_DELETED)
     ));
   }
@@ -84,7 +149,7 @@ export class TutorApplyForClassService {
         status: ApplicationStatus.PENDING
       }
     });
-    await Promise.allSettled(pendingApplications.map(application => 
+    await Promise.allSettled(pendingApplications.map(application =>
       this.updateStatus(application.id, ApplicationStatus.FILLED)
     ));
   }
