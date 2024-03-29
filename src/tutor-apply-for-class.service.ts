@@ -131,18 +131,6 @@ export class TutorApplyForClassService {
     return firstValueFrom(this.client.send<Class>({ cmd: 'getClassById' }, id));
   }
 
-  async cancelTutorApplyForClass(id: string) {
-    return this.updateStatus(id, ApplicationStatus.CANCELLED);
-  }
-
-  async rejectTutorApplyForClass(id: string) {
-    return this.updateStatus(id, ApplicationStatus.REJECTED);
-  }
-
-  async approveTutorApplyForClass(id: string) {
-    return this.updateStatus(id, ApplicationStatus.APPROVED);
-  }
-
   async setAllApplicationToClassDeletedByClassId(classId: string): Promise<void> {
     const allApplications = await this.tutorApplyForClassRepository.find({
       where: {
