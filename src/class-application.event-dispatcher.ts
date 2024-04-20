@@ -39,4 +39,10 @@ export class ClassApplicationEventDispatcher {
         const event = new ClassApplicationUpdatedEvent(eventPayload);
         this.broadcastService.broadcastEventToAllMicroservices(event.pattern, event.payload);
     }
+
+    dispatchClassApplicationsUpdatedEvent(updatedApplications: TutorApplyForClass[]) {
+        updatedApplications.forEach(application => {
+            this.dispatchClassApplicationUpdatedEvent(application);
+        })
+    }
 }

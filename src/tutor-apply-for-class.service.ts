@@ -132,29 +132,39 @@ export class TutorApplyForClassService {
   }
 
   async setAllApplicationToClassDeletedByClassId(classId: string): Promise<void> {
-    const allApplications = await this.tutorApplyForClassRepository.find({
+    await this.tutorApplyForClassRepository.update(
+      { classId },
+      { status: ApplicationStatus.CLASS_DELETED }
+    );
+
+    // Fetch the updated applications from the database
+    const updatedApplications = await this.tutorApplyForClassRepository.find({
       where: {
         classId,
       }
     });
-    await Promise.allSettled(allApplications.map(application =>
-      this.updateStatus(application.id, ApplicationStatus.CLASS_DELETED)
-    ));
+
+    this.classApplicationEventDispatcher.dispatchClassApplicationsUpdatedEvent(updatedApplications);
   }
 
-  async setPendingStatusToFilled(classId: string) {
-    const pendingApplications = await this.tutorApplyForClassRepository.find({
+  async setPendingStatusToFilled(classId: string): Promise<void> {
+    await this.tutorApplyForClassRepository.update(
+      { classId, status: ApplicationStatus.PENDING },
+      { status: ApplicationStatus.FILLED }
+    );
+
+    // Fetch the updated applications from the database
+    const updatedApplications = await this.tutorApplyForClassRepository.find({
       where: {
         classId,
-        status: ApplicationStatus.PENDING
+        status: ApplicationStatus.FILLED
       }
     });
-    await Promise.allSettled(pendingApplications.map(application =>
-      this.updateStatus(application.id, ApplicationStatus.FILLED)
-    ));
+
+    this.classApplicationEventDispatcher.dispatchClassApplicationsUpdatedEvent(updatedApplications);
   }
 
-  async updateStatus(id: string, newStatus: ApplicationStatus): Promise<TutorApplyForClass> {
+  private async updateStatus(id: string, newStatus: ApplicationStatus): Promise<TutorApplyForClass> {
     const application = await this.getApplicationById(id);
     this.validateStatusTransition(application.status, newStatus);
     application.status = newStatus;
