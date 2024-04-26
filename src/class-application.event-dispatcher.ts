@@ -29,9 +29,10 @@ export class ClassApplicationEventDispatcher {
     }
 
     dispatchClassApplicationUpdatedEvent(updatedApplication: TutorApplyForClass) {
-        const { id, tutorId, classId, status } = updatedApplication
+        const { id, tutorId, classId, status, isDesignated } = updatedApplication;
         const eventPayload = Builder<ClassApplicationUpdatedEventPayload>()
             .classApplicationId(id)
+            .isDesignated(isDesignated)
             .tutorId(tutorId)
             .classId(classId)
             .newStatus(status)
